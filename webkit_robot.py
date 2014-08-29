@@ -1,7 +1,7 @@
 #! /usr/bin/python
 # lib/webkit_robot.py
-# Copyright 2013, Trinity College Computing Center
-# Last modified: 17 January 2013
+# Copyright 2013, 2014, Trinity College Computing Center
+# Last modified: 15 August 2014
 
 import gobject
 import gtk
@@ -66,10 +66,10 @@ class WebkitRobot(gtk.VBox):
 			self.panel = gtk.HBox()
 			self.button_create(gtk.STOCK_GO_BACK, self.webkit.go_back)
 			self.button_create(gtk.STOCK_GO_FORWARD, self.webkit.go_forward)
-			if button_stop:
-				self.button_create(gtk.STOCK_STOP, self.webkit.stop_loading)
 			if button_refresh:
 				self.button_create(gtk.STOCK_REFRESH, self.webkit.reload)
+			if button_stop:
+				self.button_create(gtk.STOCK_STOP, self.webkit.stop_loading)
 			self.pack_start(self.panel, False, False, 5)
 			self.panel.show_all()
 
@@ -77,13 +77,18 @@ class WebkitRobot(gtk.VBox):
 		self.pack_start(scroller, True, True)
 		scroller.show_all()
 
+	# Create a button with a stock icon in it which when pressed
+	# will call clicked_function.
 	def button_create(self, stock_icon, clicked_function):
-		button = gtk.Button(stock=stock_icon)
-		self.panel.pack_start(button, False, False, 5)
+		image = gtk.Image()
+		image.set_from_stock(stock_icon, gtk.ICON_SIZE_BUTTON)
+		button = gtk.Button()
+		button.add(image)
+		self.panel.pack_start(button, False, False, 2)
 		button.connect("clicked", self.button_handler, clicked_function)
 		
 	def button_handler(self, widget, function):
-		print "Button:", widget.get_label()
+		#print "Button:", widget.get_label()
 		function()
 
 	# Some evil websites install an empty handler for the context menu. This
