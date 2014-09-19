@@ -1,5 +1,6 @@
 # pyapp/gtk_common_ui.py
-# Last modified: 13 August 2013
+# Copyright 2013, 2014, Trinity College
+# Last modified: 14 September 2014
 
 import os
 import sys
@@ -165,7 +166,7 @@ class Progress:
 		print "Progress Widget out-of-scope"
 		self.dialog.hide()
 
-	def _cancel_cb(self, widget):
+	def _cancel_cb(self, widget, event=None):
 		print "*********** Cancel pressed ************"
 		self.canceled = True
 		return True

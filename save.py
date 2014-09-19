@@ -1,11 +1,12 @@
 # pyapp/save.py
-# Last modified: 22 May 2014
+# Last modified: 12 September 2014
 
 import os
 
 class SaveOpen(object):
-	def __init__(self, filename):
+	def __init__(self, filename, backup=False):
 		self.filename = filename
+		self.backup = backup
 
 		# MS-DOS naming scheme
 		#(base, ext) = os.path.splitext(self.filename)
@@ -24,8 +25,11 @@ class SaveOpen(object):
 	def close(self):
 		self.fh.close()
 		if os.path.exists(self.filename):
-			if os.path.exists(self.backname):
-				os.remove(self.backname)
-			os.rename(self.filename, self.backname)
+			if self.backup:
+				if os.path.exists(self.backname):
+					os.remove(self.backname)
+				os.rename(self.filename, self.backname)
+			else:
+				os.unlink(self.filename)
 		os.rename(self.tempname, self.filename)
 
