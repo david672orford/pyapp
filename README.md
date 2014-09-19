@@ -1,3 +1,6 @@
+Pyapp
+=====
+
 This is a set of functions which are generally useful when create
 Gtk+ applications in Python.
 
