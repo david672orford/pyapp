@@ -1,6 +1,6 @@
 # pyapp/gtk_common_ui.py
 # Copyright 2013, 2014, Trinity College
-# Last modified: 14 September 2014
+# Last modified: 20 October 2014
 
 import os
 import sys
@@ -63,7 +63,12 @@ class CommonUI(object):
 		self.error_dialog(_("Operation Failed"), error_message)
 
 	def error_dialog(self, title, error_message):
-		print "%s: %s" % (title, error_message)
+		#print "%s: %s" % (title, error_message)
+		print "+=================================================================+"
+		print "| %50s" % title
+		print "+=================================================================+"
+		print "| %s" % (error_message.replace("\n","\n|"))
+		print "+=================================================================+"
 
 		dialog = self.builder.get_object("ErrorDialog")
 		dialog.set_transient_for(self.main_window)
@@ -90,7 +95,9 @@ class CommonUI(object):
 		dialog.hide()
 
 	def error_dialog_exception(self, operation, e):
-		if type(e) != CanceledByUser:
+		if type(e) == CanceledByUser:
+			print "CanceledByUser caught"
+		else:
 			import traceback
 			(e_type, e_value, e_traceback) = sys.exc_info()
 			message = _("Unexpected error during operation \"{operation_name}\":\n" \
@@ -140,90 +147,117 @@ class Busy(object):
 
 #=============================================================
 # Progress bar dialog box
+# We use and reuse a progress dialog box defined using Glade.
 #=============================================================
-class Progress:
+
+class Progress(object):
 	def __init__(self, main_window, builder):
-		self.dialog = builder.get_object("ProgressDialog")
-		self.dialog.set_transient_for(main_window)
-		self.primary_message = builder.get_object("ProgressMessage1")
-		self.secondary_message = builder.get_object("ProgressMessage2")
-		self.bar = builder.get_object("ProgressBar")
+		self.dialog = ProgressDialog(main_window, builder)
 
-		builder.get_object("ProgressCancelButton").connect('clicked', BoundMethodProxy(self._cancel_cb))
-		self.dialog.connect('delete-event', BoundMethodProxy(self._cancel_cb))
-
-		self.canceled = False
-
-		self.primary_message.set_text("")
+		self.dialog.primary_message.set_text("")
 		self.primary_part = 0.0
 		self.primary_whole = 1.0
 
-		self.secondary_message.set_text("")
+		self.dialog.secondary_message.set_text("")
 		self.secondary_part = 0.0
 		self.secondary_whole = 1.0
 
+		self.bump_amount = 0.0
+
 	def __del__(self):
-		print "Progress Widget out-of-scope"
-		self.dialog.hide()
+		print "Progress: out-of-scope"
+		self.dialog.destroy()
 
-	def _cancel_cb(self, widget, event=None):
-		print "*********** Cancel pressed ************"
-		self.canceled = True
-		return True
-
+	# First level of progress: indicate the current task
 	def progress(self, part, whole, message):
 		if part is not None:
 			self.primary_part = float(part)
 		if whole is not None:
 			self.primary_whole = float(whole)
 		if message is not None:
-			self.primary_message.set_text(message)
+			self.dialog.primary_message.set_text(message)
 		self.secondary_part = 0.0
 		self.secondary_whole = 1.0
-		self.secondary_message.set_text("")
-		self._update()
+		self.bump_amount = 0.0
+		self.dialog.secondary_message.set_text("")
+		self._update_bar()
+		self.dialog.dialog.show()
+		self.handle_events()
 
+	# Second level of progress: how far along in the current task
 	def sub_progress(self, part, whole, message):
 		if part is not None:
 			self.secondary_part = float(part)
 		if whole is not None:
 			self.secondary_whole = float(whole)
 		if message is not None:
-			self.secondary_message.set_text(message)
-		self._update()
+			self.dialog.secondary_message.set_text(message)
+		self.bump_amount = 0.0
+		self._update_bar()
+		self.handle_events()
 
-	# Called by progress() and sub_progress() to flush out.
-	def _update(self):
-		if self.canceled:
-			print "Canceling..."
-			raise CanceledByUser
+	def bump(self, bump_amount):
+		self.bump_amount = min(bump_amount, 1.0)
+		self._update_bar()
+		self.handle_events()
 
-		fraction = self.primary_part / self.primary_whole + (self.secondary_part / self.secondary_whole / self.primary_whole)
+	# Compute the new position of the progress bar
+	def _update_bar(self):
+		fraction = self.primary_part / self.primary_whole \
+			+ ((self.secondary_part+self.bump_amount) / self.secondary_whole / self.primary_whole)
 		if False:
 			print "primary: %d/%d" % (self.primary_part, self.primary_whole)
 			print "secondary: %d/%d" % (self.secondary_part, self.secondary_whole)
 			print "fraction: %f" % fraction
-		self.bar.set_fraction(fraction)
-		self.bar.set_text("%d%%" % int(fraction / 1.0 * 100.0 + 0.5))
+		self.dialog.bar.set_fraction(fraction)
+		self.dialog.bar.set_text("%d%%" % int(fraction / 1.0 * 100.0 + 0.5))
 
-		self.dialog.show()
-
+	def handle_events(self):
+		#print "progress refcount:", sys.getrefcount(self)
 		while gtk.events_pending():	
 			gtk.main_iteration(False)
+		if self.dialog.canceled:
+			print "Progress: raising CanceledByUser..."
+			raise CanceledByUser
 
+# We put some of class Progress into this class so that Progress would
+# not have circular references. Do not use this class directly.
+class ProgressDialog(object):
+	def __init__(self, main_window, builder):
+		self.dialog = builder.get_object("ProgressDialog")
+		self.cancel_button = builder.get_object("ProgressCancelButton")
+		self.primary_message = builder.get_object("ProgressMessage1")
+		self.secondary_message = builder.get_object("ProgressMessage2")
+		self.bar = builder.get_object("ProgressBar")
+
+		self.dialog.set_transient_for(main_window)
+		self.dialog.set_title(_("%s: Progress") % main_window.get_title())
+
+		self.canceled = False
+		self.button_handler = self.cancel_button.connect('clicked', self._cancel_cb)
+		self.delete_handler = self.dialog.connect('delete-event', self._delete_cb)
+
+	def destroy(self):
+		self.dialog.hide()
+		self.cancel_button.disconnect(self.button_handler)
+		self.dialog.disconnect(self.delete_handler)
+
+	def __del__(self):
+		print "Progress: ProgressDialog out-of-scope"	
+
+	def _delete_cb(self, widget, event):
+		print "Progress: window close"
+		self.canceled = True
+		self.dialog.hide()
+		return True
+
+	def _cancel_cb(self, widget):
+		print "Progress: cancel button pressed"
+		self.canceled = True
+		self.dialog.hide()
+		return True
+
+# Progress class thows this as soon as it detects that the Cancel button has been pressed.
 class CanceledByUser(Exception):
 	pass
-
-# The weakref module is unable to create a reference to a bound method. This can.
-class BoundMethodProxy(object):
-	def __init__(self, bound_method):
-		self.im_self_ref = weakref.ref(bound_method.im_self)
-		self.im_func = bound_method.im_func
-		self.im_class = bound_method.im_class
-	def __call__(self, *args, **kwargs):
-		obj = self.im_self_ref()
-		if obj is None:
-		    raise ReferenceError
-		return new.instancemethod(self.im_func, obj, self.im_class)(*args, **kwargs)
-
 
