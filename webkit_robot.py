@@ -1,7 +1,7 @@
 #! /usr/bin/python
-# lib/webkit_robot.py
-# Copyright 2013, 2014, Trinity College Computing Center
-# Last modified: 15 August 2014
+# pyapp/webkit_robot.py
+# Copyright 2013--2018, Trinity College Computing Center
+# Last modified: 18 May 2018
 
 import gobject
 import gtk
@@ -27,6 +27,7 @@ class WebkitRobot(gtk.VBox):
 		self.config = config
 		self.file_download_cb = file_download_cb
 		self.data_download_cb = data_download_cb
+		self.enable_debug = False
 
 		# derived classes may override
 		self.login_macro = []					# run before first macro set with macro() method
@@ -88,7 +89,7 @@ class WebkitRobot(gtk.VBox):
 		button.connect("clicked", self.button_handler, clicked_function)
 		
 	def button_handler(self, widget, function):
-		#print "Button:", widget.get_label()
+		self.debug("Button: %s" % widget.get_label())
 		function()
 
 	# Some evil websites install an empty handler for the context menu. This
@@ -114,7 +115,7 @@ class WebkitRobot(gtk.VBox):
 	# We use a debug function so that it will be easy to disable debugging
 	# messages when we don't need them.
 	def debug(self, message):
-		if True:
+		if self.enable_debug:
 			print message
 
 	# Receive a message sent to the Javascript console.
@@ -148,17 +149,17 @@ class WebkitRobot(gtk.VBox):
 
 	def resource_request_starting_cb(self, view, frame, resource, request, response):
 		url = request.get_uri()
-		print "Resource request starting:", url
+		self.debug("Resource request starting: %s" % url)
 		if not self.approved_url(url):
-			print " rejected"
+			self.debug(" rejected")
 			request.set_uri("about:blank")
 
 	def approved_url(self, url):
 		if self.allowed_domains is not None:
 			url_hostname = urlparse.urlparse(url).netloc.split(':')[0]
-			#print "url_hostname:", url_hostname
+			self.debug("url_hostname: %s" % url_hostname)
 			for domain in self.allowed_domains:
-				#print "domain:", domain
+				self.debug("domain: %s" % domain)
 				if url_hostname == domain or url_hostname.endswith(".%s" % domain):
 					return True
 			return False
@@ -264,7 +265,7 @@ class WebkitRobot(gtk.VBox):
 
 			# Execute Javascript and move on to the next instruction in the 
 			# macro without waiting.
-			match = re.match('^js_blind:(.+)$', url)
+			match = re.match('^js_blind:(.+)$', url, re.DOTALL)
 			if match:
 				code = match.group(1)
 				self.webkit.execute_script(code)
@@ -274,16 +275,22 @@ class WebkitRobot(gtk.VBox):
 			# Execute Javascript that is expected to cause a new page to be
 			# loaded. The next instruction in the macro will be triggered
 			# when the new page finishes loading.
-			match = re.match('^js_nav:(.+)$', url)
+			match = re.match('^js_nav:(.+)$', url, re.DOTALL)
 			if match:
 				code = match.group(1)
 				self.webkit.execute_script(code)
 				return
 
-			# Simply wait for the indicated number of milliseconds (?).
-			match = re.match('^js_delay:(\d+):(.+)$', url)
+			# Execute the code in the second parameter and then wait for the indicated number of milliseconds.
+			match = re.match('^js_delay:(\d+):(.+)$', url, re.DOTALL)
 			if match:
 				self.webkit.execute_script(match.group(2))
+				gobject.timeout_add(int(match.group(1)), self.wait_over_cb)
+				return
+
+			# Simply delay
+			match = re.match('^delay:(\d+)$', url)
+			if match:
 				gobject.timeout_add(int(match.group(1)), self.wait_over_cb)
 				return
 

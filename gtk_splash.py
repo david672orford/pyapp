@@ -1,9 +1,9 @@
 # pyapp/gtk_splash.py
-# Copyright 2013, Trinity College Computing Center
-# Last modified: 8 August 2013
+# Copyright 2013, 2014, 2015, Trinity College Computing Center
+# Last modified: 16 January 2015
 
 import gtk
-import pykarta.misc
+from bound import BoundMethodProxy
 
 # The application objects __init__() method should create an instance of
 # this and keep a reference to it in a local variable. When it exists 
@@ -18,7 +18,7 @@ class Splash(object):
 		# Hook the application's error_dialog() method so that we can
 		# make the splash screen disappear before the dialog box appears.
 		self.real_error_dialog = self.app_obj.error_dialog
-		self.app_obj.error_dialog = pykarta.misc.BoundMethodProxy(self.error_dialog_hook)
+		self.app_obj.error_dialog = BoundMethodProxy(self.error_dialog_hook)
 
 		# Create a white window
 		self.window = gtk.Window(type=gtk.WINDOW_TOPLEVEL)

@@ -138,7 +138,7 @@ class PackageUpdater:
 			old_path = "%s-old" % self.package_dir
 			if os.path.exists(old_path):
 				self.rmtree_robust(old_path)
-			os.rename(self.package_dir, old_path)
+			os.rename(self.package_dir, old_path)	# fails under Windows 10 with Error 5: Access is denied
 
 		# move new version into place
 		temp = "%s/%s" % (self.update_dir, self.package_dir_basename)

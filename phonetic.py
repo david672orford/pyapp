@@ -34,7 +34,7 @@ import re
 # at Trinity College since the early 1990's. They were
 # developed by David Chappell after he read Chaucer.
 # It does fairly well on names of Western European origin.
-fn_rules = [
+rules_fn = [
 
 	# These rules are not actually in the Perl implementation
 	# because it was assumed that these steps would be performed
@@ -139,8 +139,8 @@ fn_rules = [
 
 # This is a new version of the rules which David Chappell developed
 # in 2011 after he learned Russian. It is intended to do better than
-# fn_rules[] on Slavic names.
-experimental_rules = [
+# rules_fn[] on Slavic names.
+rules_slavic = [
 
 	# Convert to lower case
 	[r'^(.+)$', lambda matchobj: matchobj.group(1).lower()],
@@ -270,10 +270,10 @@ experimental_rules = [
 	]
 
 # Compile all of the regular expressions.
-for experimental_rule in experimental_rules:
-	experimental_rule[0] = re.compile(experimental_rule[0])
-for fn_rule in fn_rules:
-	fn_rule[0] = re.compile(fn_rule[0])
+for rule in rules_fn:
+	rule[0] = re.compile(rule[0])
+for rule in rules_slavic:
+	rule[0] = re.compile(rule[0])
 
 # Convert a word to lower case and run it through
 # the substitutions listed above.
@@ -284,18 +284,18 @@ def apply_rules(word, rules):
 
 # Convert a word into a phonetic skeleton as Fullname did.
 def fn_phonetic(word):
-	return apply_rules(word, fn_rules)
+	return apply_rules(word, rules_fn)
 
 # Convert a word into a phonetic skeleton using the new rules.
-def experimental_phonetic(word):
-	return apply_rules(word, experimental_rules)
+def slavic_phonetic(word):
+	return apply_rules(word, rules_slavic)
 
 if __name__ == "__main__":
 	import sys
 
 	if len(sys.argv) > 1:
 		for word in sys.argv[1:]:
-			print experimental_phonetic(word)
+			print slavic_phonetic(word)
 	else:
 		def test_function(function, name1, name2, should_match):
 			skel1 = function(name1)
@@ -310,13 +310,13 @@ if __name__ == "__main__":
 		def test_fn_phonetic(name1, name2, should_match):
 			return test_function(fn_phonetic, name1, name2, should_match)	
 	
-		def test_experimental_phonetic(name1, name2, should_match):
-			return test_function(experimental_phonetic, name1, name2, should_match)	
+		def test_slavic_phonetic(name1, name2, should_match):
+			return test_function(slavic_phonetic, name1, name2, should_match)	
 	
 		test_fn_phonetic("Chappell", "Chaple", True)
 		test_fn_phonetic("Maria", "Mary", True)
 		test_fn_phonetic("Mariya", "Mary", True)
 		test_fn_phonetic("John", "Ian", False)
 
-		test_experimental_phonetic("John", "Ian", True)
+		test_slavic_phonetic("John", "Ian", True)
 

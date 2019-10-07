@@ -1,6 +1,6 @@
 # pyapp/gtk_common_ui.py
-# Copyright 2013, 2014, Trinity College
-# Last modified: 20 October 2014
+# Copyright 2013--2018, Trinity College
+# Last modified: 30 May 2018
 
 import os
 import sys
@@ -75,16 +75,18 @@ class CommonUI(object):
 		dialog.set_title(title)
 		codeview = self.builder.get_object("ErrorDialogCodeView")
 
-		# If the message contains line breaks, split off all of the lines after
-		# the first and display them in a label widget under the main error message.
-		# This makes stack backtraces look much better.
+		# If the message already contains line breaks, split off all of the
+		# lines after the first and display them in a label widget under the
+		# main error message. This makes stack backtraces look much better.
 		lines = error_message.split("\n")
 		if len(lines) > 1:
 			error_message = lines[0]
 			codeview.set_label("\n".join(lines[1:]))
 			codeview.show()
+			dialog.set_property('default_width',1000)
 		else:
 			codeview.hide()
+			dialog.set_property('default_width',600)
 
 		# XML escape the error message and insert the text
 		dialog.set_markup(error_message.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
@@ -100,11 +102,8 @@ class CommonUI(object):
 		else:
 			import traceback
 			(e_type, e_value, e_traceback) = sys.exc_info()
-			message = _("Unexpected error during operation \"{operation_name}\":\n" \
-				"\n" \
-				"{error_type}: {error_value}\n" \
-				"\n" \
-				"Traceback: {traceback}").format(
+			message = _("Unexpected error during operation \"{operation_name}\": {error_type}: {error_value}\n" \
+				"{traceback}").format(
 					operation_name=operation,
 					error_type="%s.%s" % (e_type.__module__, e_type.__name__),
 					error_value=e_value,
